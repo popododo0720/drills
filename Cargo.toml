@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["lru"]
+members = ["health","lru"]
 
 [workspace.lints.rust]
 missing_docs = "warn"
