@@ -1,4 +1,4 @@
-//! Checks whether HTTP endpoints are up.
+//! Command-line entry point for the health checker.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -27,23 +27,14 @@ async fn main() -> Result<(), reqwest::Error> {
                 .acquire()
                 .await
                 .expect("semaphore is never closed");
-            let result = check(&client, &url).await;
-            (url, result)
+            health::check(&client, url).await
         });
     }
 
     while let Some(joined) = tasks.join_next().await {
-        let (url, result) = joined.expect("check task should not panic");
-        match result {
-            Ok(status) => println!("{status} {url}"),
-            Err(e) => println!("ERROR {url}: {e}"),
-        }
+        let report = joined.expect("check task should not panic");
+        println!("{report:?}");
     }
 
     Ok(())
-}
-
-async fn check(client: &reqwest::Client, url: &str) -> Result<reqwest::StatusCode, reqwest::Error> {
-    let response = client.get(url).send().await?;
-    Ok(response.status())
 }
