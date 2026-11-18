@@ -1,0 +1,9 @@
+[workspace]
+resolver = "3"
+members = ["lru"]
+
+[workspace.lints.rust]
+missing_docs = "warn"
+
+[workspace.lints.clippy]
+unwrap_used = "warn"
