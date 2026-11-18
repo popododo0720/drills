@@ -1,16 +1,23 @@
 //! A least-recently-used cache.
 
+use std::borrow::Borrow;
 use std::collections::{HashMap, VecDeque};
+use std::hash::Hash;
 use std::num::NonZeroUsize;
 
 /// A fixed-size cache that evicts the least recently used entry when it is full.
-pub struct LruCache {
+#[derive(Debug)]
+pub struct LruCache<K, V> {
     capacity: NonZeroUsize,
-    map: HashMap<String, i32>,
-    order: VecDeque<String>,
+    map: HashMap<K, V>,
+    order: VecDeque<K>,
 }
 
-impl LruCache {
+impl<K, V> LruCache<K, V>
+where
+    K: Hash + Eq + Clone,
+    V: Clone,
+{
     /// Creates an empty cache that holds at most `capacity` entries.
     pub fn new(capacity: NonZeroUsize) -> Self {
         Self {
@@ -23,8 +30,12 @@ impl LruCache {
     /// Returns the value for `key`, or `None` if it is not in the cache.
     ///
     /// A found entry becomes the most recently used one.
-    pub fn get(&mut self, key: &str) -> Option<i32> {
-        let value = self.map.get(key).copied()?;
+    pub fn get<Q>(&mut self, key: &Q) -> Option<V>
+    where
+        K: Borrow<Q>,
+        Q: Hash + Eq + ?Sized,
+    {
+        let value = self.map.get(key).cloned()?;
         self.touch(key);
 
         Some(value)
@@ -34,7 +45,7 @@ impl LruCache {
     ///
     /// The entry becomes the most recently used one. If the cache is full and `key` is new,
     /// the least recently used entry is evicted first.
-    pub fn put(&mut self, key: String, value: i32) {
+    pub fn put(&mut self, key: K, value: V) {
         if self.map.contains_key(&key) {
             self.touch(&key);
         } else {
@@ -45,9 +56,15 @@ impl LruCache {
     }
 
     // Moves key to the most recently used position.
-    fn touch(&mut self, key: &str) {
-        if let Some(index) = self.order.iter().position(|k| k == key)
-            && let Some(k) = self.order.remove(index)
+    fn touch<Q>(&mut self, key: &Q)
+    where
+        K: Borrow<Q>,
+        Q: Hash + Eq + ?Sized,
+    {
+        if let Some(index) = self.order.iter().position(|k| {
+            let k: &Q = k.borrow();
+            k == key
+        }) && let Some(k) = self.order.remove(index)
         {
             self.order.push_back(k);
         }
